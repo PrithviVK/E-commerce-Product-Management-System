@@ -1,0 +1,111 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>User Dashboard</title>
+    <link rel="stylesheet" href="{% static '/css/style.css' %}" rel="stylesheet" type="text/css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>User Dashboard</h1>
+            <nav>
+                <ul>
+                    <li><a href="{% url 'home' %}">View Management Page</a></li>
+                </ul>
+            </nav>
+        </header>
+
+        <main>
+            <section class="search-section">
+                <form method="GET" action="{% url 'user_products' %}">
+                    <input type="text" name="q" placeholder="Search products..." value="{{ query }}">
+                    <button type="submit">Search</button>
+                </form>
+            </section>
+
+            <section class="products-section">
+                <h2>Products</h2>
+                <ul>
+                    {% for product in page_obj %}
+                        <li class="product-item">
+                            <h3>{{ product.name }}</h3>
+                            <p>{{ product.description }}</p>
+                            <h4>Reviews:</h4>
+                            <ul class="reviews-list">
+                                {% for review in product.reviews.all %}
+                                    <li class="review-item">
+                                        <strong>Rating:</strong> {{ review.rating }}<br>
+                                        <strong>Comment:</strong> {{ review.comment }}
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                            <h4>Add a Review:</h4>
+                            <form id="reviewForm-{{ product.id }}">
+                                {% csrf_token %}
+                                <label for="rating">Rating:</label>
+                                <input type="number" name="rating" min="1" max="5" required><br>
+                                <label for="comment">Comment:</label>
+                                <textarea name="comment" required></textarea><br>
+                                <label for="customer_id">Customer ID:</label>
+                                <input type="number" id="cust_id" name="customer_id" required><br>
+                                <input type="hidden" name="product" value="{{ product.id }}">
+                                <button type="submit">Submit Review</button>
+                            </form>
+                        </li>
+                    {% endfor %}
+                </ul>
+            </section>
+
+            <section class="pagination">
+                <center>
+                    {% if page_obj.has_previous %}
+                        <a href="?page={{ page_obj.previous_page_number }}{% if query %}&q={{ query }}{% endif %}">Previous</a>
+                    {% endif %}
+                    <span>{{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+                    {% if page_obj.has_next %}
+                        <a href="?page={{ page_obj.next_page_number }}{% if query %}&q={{ query }}{% endif %}">Next</a>
+                    {% endif %}
+                </center>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const forms = document.querySelectorAll('form[id^="reviewForm-"]');
+
+            forms.forEach(form => {
+                form.addEventListener('submit', function(e) {
+                    e.preventDefault();
+
+                    const formData = new FormData(form);
+                    const productId = form.querySelector('input[name="product"]').value;
+
+                    fetch(`{% url 'review_list' 0 %}`.replace('0', productId), {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'X-CSRFToken': '{{ csrf_token }}'
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            alert(data.message);
+                        } else {
+                            alert('Error adding review');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('An error occurred while submitting the review');
+                    });
+                });
+            });
+        });
+    </script>
+</body>
+</html>
+
